@@ -16,20 +16,18 @@ const tpl = document.getElementById('seat-tpl');
 todayEl.textContent = new Date().toISOString().slice(0, 10);
 
 const seats = new Map();      // seatId -> seat
-const userGroups = new Map(); // user -> { el, seatsEl }
 
 function seatId(s) { return `${s.user}::${s.agent}::${s.instance}`; }
 
-function ensureUserGroup(user) {
-  let g = userGroups.get(user);
-  if (g) return g;
-  const el = document.createElement('section');
-  el.className = 'user-group';
-  el.innerHTML = `<h2>@${user}</h2><div class="seats"></div>`;
-  room.appendChild(el);
-  g = { el, seatsEl: el.querySelector('.seats') };
-  userGroups.set(user, g);
-  return g;
+// Stable seat order so the layout doesn't jitter when SSE/poll deltas arrive
+// in different orders. Sort by user, then agent, then instance.
+function sortSeats() {
+  const arr = [...seats.values()].sort((a, b) => {
+    if (a.user !== b.user) return a.user.localeCompare(b.user);
+    if (a.agent !== b.agent) return a.agent.localeCompare(b.agent);
+    return a.instance.localeCompare(b.instance);
+  });
+  for (const s of arr) room.appendChild(s.el);  // reorder DOM in place
 }
 
 function makeSeatEl(seat) {
@@ -51,6 +49,13 @@ function applyState(seat) {
   const dot = seat.el.querySelector('.statedot');
   dot.className = 'statedot ' + stateName;
 
+  // Drive the lamp-glow ::before via a single state class on the seat itself.
+  // Clear any prior s-* class, then add the current one.
+  for (const cls of [...seat.el.classList]) {
+    if (cls.startsWith('s-')) seat.el.classList.remove(cls);
+  }
+  seat.el.classList.add('s-' + stateName);
+
   const avatar = seat.el.querySelector('.avatar');
   avatar.classList.remove('pulse');
   void avatar.offsetWidth; // restart CSS animation
@@ -59,6 +64,22 @@ function applyState(seat) {
   updateDim(seat);
 }
 
+// task = master's order, sticky from start to session-end. Multi-line
+// speech bubble. Clears when value is empty string.
+function setTask(seat, text) {
+  const el = seat.el.querySelector('.task');
+  if (!text) {
+    el.classList.remove('show');
+    setTimeout(() => { el.hidden = true; }, 500);
+    return;
+  }
+  el.textContent = text;
+  el.hidden = false;
+  requestAnimationFrame(() => el.classList.add('show'));
+}
+
+// bubble = transient short wisecrack (GLM bubble-writer, ≤14 CJK chars).
+// Auto-fade 6s.
 function showBubble(seat, text) {
   const el = seat.el.querySelector('.bubble');
   el.textContent = text;
@@ -71,6 +92,8 @@ function showBubble(seat, text) {
   }, 6000);
 }
 
+// hud = rolling activity strip. Each new HUD line replaces the previous.
+// 60s persist; refreshed by every new event.
 function showNarration(seat, text) {
   const el = seat.el.querySelector('.narration');
   el.textContent = text;
@@ -83,8 +106,23 @@ function showNarration(seat, text) {
   }, 60000);
 }
 
+// State decay: desk-waifu's local Hammerspoon side auto-transitions
+// celebrate → sleep after 60s, and any active state → sleep after 3min
+// of silence. We mirror that here so the office room doesn't freeze a
+// chibi mid-celebrate forever.
+const CELEBRATE_HOLD_MS = 60 * 1000;
+const IDLE_THRESHOLD_MS = 3 * 60 * 1000;
+function effectiveState(rawState, lastSeen) {
+  const age = Date.now() - (lastSeen || 0);
+  if (rawState === 'celebrate' && age > CELEBRATE_HOLD_MS) return 'sleep';
+  if (rawState && rawState !== 'sleep' && rawState !== 'idle_blink'
+      && age > IDLE_THRESHOLD_MS) return 'sleep';
+  return rawState || 'idle_blink';
+}
+
 function updateDim(seat) {
-  const stale = seat.state === 'sleep' && (Date.now() - (seat.lastSeen || 0) > SLEEP_DIM_MS);
+  const state = effectiveState(seat.state, seat.lastSeen);
+  const stale = state === 'sleep' && (Date.now() - (seat.lastSeen || 0) > SLEEP_DIM_MS);
   seat.el.classList.toggle('dim', !!stale);
 }
 
@@ -93,10 +131,10 @@ function upsertSeat(s) {
   let seat = seats.get(id);
   if (!seat) {
     seat = { ...s };
-    const g = ensureUserGroup(seat.user);
     seat.el = makeSeatEl(seat);
-    g.seatsEl.appendChild(seat.el);
+    room.appendChild(seat.el);
     seats.set(id, seat);
+    sortSeats();  // keep DOM order stable
   }
   return seat;
 }
@@ -108,14 +146,6 @@ function removeSeat(id) {
   if (seat._narrTimer) clearTimeout(seat._narrTimer);
   seat.el.remove();
   seats.delete(id);
-  // Drop the user group if it's empty so the room view doesn't keep ghost
-  // headers for users whose only instance went away.
-  const user = seat.user;
-  const group = userGroups.get(user);
-  if (group && !group.seatsEl.children.length) {
-    group.el.remove();
-    userGroups.delete(user);
-  }
 }
 
 // ── Polling loop ─────────────────────────────────────────────────────────
@@ -167,15 +197,29 @@ function applyRoom(roomData) {
       user: row.user, agent: row.agent_name, instance: row.instance_id,
     });
     seat.lastSeen = row.last_seen;
-    const newState = row.state || 'idle_blink';
+    seat.rawState = row.state || 'idle_blink';
+
+    // Apply effective state (with decay). Keep seat.state holding the
+    // currently-rendered state so we don't re-apply on every poll.
+    const newState = effectiveState(seat.rawState, seat.lastSeen);
     if (newState !== seat.state) {
       seat.state = newState;
       applyState(seat);
     } else if (!seat._initial) {
-      // First touch on a known seat: render whatever state we got.
       applyState(seat);
       seat._initial = true;
     }
+
+    // task (sticky, multi-line). Set or clear based on whether server
+    // returned a value. Track ts to avoid re-rendering identical content.
+    if (row.task && row.task_ts && seat._lastTaskTs !== row.task_ts) {
+      seat._lastTaskTs = row.task_ts;
+      setTask(seat, row.task);
+    } else if (!row.task && seat._lastTaskTs !== null) {
+      seat._lastTaskTs = null;
+      setTask(seat, '');
+    }
+
     if (row.bubble && row.bubble_ts && Date.now() - row.bubble_ts < 30000
         && seat._lastBubbleTs !== row.bubble_ts) {
       seat._lastBubbleTs = row.bubble_ts;
@@ -187,12 +231,24 @@ function applyRoom(roomData) {
       showNarration(seat, row.hud);
     }
   }
-  // Cull seats that disappeared from /api/room (older instance replaced
-  // by a new one, or agent process simply stopped emitting).
+  // Cull seats that disappeared from /api/room.
   for (const id of [...seats.keys()]) {
     if (!present.has(id)) removeSeat(id);
   }
 }
+
+// Decay-driven re-render: every 5s, re-check each seat and apply the
+// effective state. Catches the celebrate→sleep transition without needing
+// a fresh poll event.
+setInterval(() => {
+  for (const seat of seats.values()) {
+    const want = effectiveState(seat.rawState, seat.lastSeen);
+    if (want !== seat.state) {
+      seat.state = want;
+      applyState(seat);
+    }
+  }
+}, 5000);
 
 async function tick() {
   try {

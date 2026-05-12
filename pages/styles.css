@@ -103,67 +103,62 @@ body::before {
 .dot.live { background: var(--s-celebrate); box-shadow: 0 0 0 3px rgba(107,142,78,0.16); }
 
 /* ── Room ─────────────────────────────────────────────── */
+/* One stage, all seats on the floor. Horizontal flex row that wraps if the
+   crowd outgrows the viewport. min-height makes the room fill the screen so
+   chibis really sit on the wood floor (background-position: bottom). */
 .room {
   position: relative; z-index: 1;
-  max-width: 1280px;
+  min-height: calc(100vh - 72px);
   margin: 0 auto;
-  padding: 40px 32px 100px;
-  display: flex; flex-direction: column;
-  gap: 36px;
-}
-
-.user-group {
-  position: relative;
-}
-.user-group h2 {
-  display: inline-flex; align-items: center;
-  margin: 0 0 14px 0;
-  padding: 4px 12px 4px 10px;
-  background: rgba(250,249,245,0.85);
-  backdrop-filter: blur(6px);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-family: var(--serif);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ink-soft);
-  letter-spacing: -0.005em;
-  box-shadow: 0 1px 3px rgba(44,38,32,0.04);
-}
-.user-group h2::before {
-  content: "§";
-  color: var(--accent);
-  margin-right: 8px;
-  font-style: italic;
-}
-.user-group .seats {
-  display: flex; flex-wrap: wrap; gap: 0 8px;
+  padding: 60px 48px 80px;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-evenly;
   align-items: flex-end;
+  gap: 40px 16px;
 }
 
-/* ── Seat: workstation diorama ─────────────────────────── */
-/* Each seat is a 240x320 box. Bottom half = desk illustration.
-   Chibi GIF stands in front of the desk (overlapping bottom 60%).
-   Bubble floats above. */
+/* Empty room: serif italic line with a thin baseline rule, like a quiet
+   archive note. */
+.room:empty::before {
+  content: "the office is quiet today";
+  display: block;
+  margin: auto;
+  text-align: center;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--ink-mute);
+  padding-top: 40px;
+  border-top: 1px solid var(--border-strong);
+  width: 220px;
+}
+
+/* ── Seat: a single workstation, self-contained ─────────── */
+/* Fixed-height stage so chibi + desk share the same floor baseline (key to
+   killing the "toys on the floor" feel — both anchored to bottom: 60px,
+   chibi z-indexed above desk so she reads as "in front of the workstation").
+   Vertical stack: [bubble] [narration] [chibi/desk overlap] [nameplate]. */
 .seat {
   position: relative;
   width: 260px;
-  height: 340px;
-  display: flex; flex-direction: column; align-items: center;
-  justify-content: flex-end;
+  height: 420px;
+  flex: 0 0 auto;
   transition: opacity 600ms ease, filter 600ms ease;
 }
 .seat.dim { opacity: 0.55; filter: saturate(0.6); }
 
-/* Desk illustration — absolutely positioned as the floor furniture */
+/* Desk tile — bigger (240×240) and anchored to the same floor as chibi.
+   Sits behind chibi. Lamp glow comes from .seat::before (state-driven). */
 .seat::after {
   content: "";
   position: absolute;
   left: 50%;
-  bottom: 28px;
+  bottom: 64px;
   transform: translateX(-50%);
-  width: 230px;
-  height: 230px;
+  width: 240px;
+  height: 240px;
   background-image: url("/assets/desk.png");
   background-size: contain;
   background-repeat: no-repeat;
@@ -172,13 +167,66 @@ body::before {
   pointer-events: none;
 }
 
-/* Chibi: stands in front of the desk, anchored to bottom */
+/* Lamp glow — state-driven warm halo over the desk lamp (upper-left
+   of the desk tile). Default off; classes below activate it. */
+.seat::before {
+  content: "";
+  position: absolute;
+  left: 40px;     /* near desk's left edge */
+  bottom: 220px;  /* lamp height ≈ 60% up the 240px desk */
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center,
+    rgba(255, 210, 130, 0.0) 0%,
+    rgba(255, 210, 130, 0.0) 100%);
+  z-index: 1;
+  pointer-events: none;
+  transition: background 600ms ease;
+  filter: blur(8px);
+}
+.seat.s-coding::before,
+.seat.s-loading::before,
+.seat.s-fix_bug::before {
+  background: radial-gradient(circle at center,
+    rgba(255, 210, 130, 0.55) 0%,
+    rgba(255, 200, 120, 0.20) 50%,
+    rgba(255, 200, 120, 0.0) 80%);
+}
+.seat.s-error_shrug::before {
+  background: radial-gradient(circle at center,
+    rgba(220, 90, 80, 0.50) 0%,
+    rgba(220, 90, 80, 0.18) 50%,
+    rgba(220, 90, 80, 0.0) 80%);
+}
+.seat.s-celebrate::before {
+  background: radial-gradient(circle at center,
+    rgba(127, 176, 105, 0.50) 0%,
+    rgba(127, 176, 105, 0.18) 50%,
+    rgba(127, 176, 105, 0.0) 80%);
+  animation: lamp-pulse 1800ms ease-in-out infinite;
+}
+.seat.s-sleep::before,
+.seat.s-idle_blink::before {
+  background: radial-gradient(circle at center,
+    rgba(120, 110, 95, 0.0) 0%,
+    rgba(120, 110, 95, 0.0) 100%);
+}
+@keyframes lamp-pulse {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1.0; }
+}
+
+/* Chibi: anchored to the same floor as desk, sits in front (z-index 2).
+   Bigger size (220×280) so she reads as a person, not a sticker. */
 .avatar {
-  position: relative;
+  position: absolute;
+  left: 50%;
+  bottom: 60px;
+  transform: translateX(-50%);
   z-index: 2;
-  width: 170px; height: 220px;
+  width: 220px; height: 280px;
   display: flex; align-items: flex-end; justify-content: center;
-  margin-bottom: 18px;
+  pointer-events: none;
 }
 .avatar .gif {
   width: 100%; height: 100%;
@@ -204,12 +252,58 @@ body::before {
   100% { opacity: 0;    background: radial-gradient(ellipse at center, rgba(204,120,92,0.0) 0%, rgba(204,120,92,0.0) 100%); }
 }
 
-/* Narration: low-key HUD strip just below the bubble — "this is what she's
-   actually doing right now". Different visual weight from bubble: smaller,
-   monospace, less prominent. */
+/* Task — the master's sticky order. Multi-line speech bubble. Persists
+   the whole session until cleared on session:end. */
+.task {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  z-index: 5;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  color: var(--ink);
+  padding: 10px 14px 10px 32px;
+  border-radius: 14px;
+  font-family: var(--serif);
+  font-size: 14px;
+  line-height: 1.45;
+  max-width: 280px;
+  min-width: 160px;
+  opacity: 0;
+  transition: opacity 400ms ease, transform 400ms ease;
+  white-space: normal;          /* multi-line */
+  word-break: break-word;
+  hyphens: auto;
+  box-shadow: 0 6px 18px rgba(44, 38, 32, 0.10);
+}
+.task.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+/* Master prefix icon, fixed to the left padding zone */
+.task::before {
+  content: "👤";
+  position: absolute;
+  left: 10px; top: 9px;
+  font-size: 14px;
+  opacity: 0.85;
+}
+/* Tail pointing down to chibi */
+.task::after {
+  content: "";
+  position: absolute;
+  left: 50%; bottom: -6px;
+  width: 10px; height: 10px;
+  background: var(--panel);
+  border-right: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+/* Narration — low-key HUD strip just below task (or above chibi when no
+   task). Monospace, single line, transient. */
 .narration {
   position: absolute;
-  bottom: 220px;
+  top: 50%;       /* will be anchored relative to seat height (420px) */
+  top: 165px;     /* fallback for browsers; explicit px */
   left: 50%;
   transform: translateX(-50%) translateY(4px);
   z-index: 3;
@@ -229,26 +323,27 @@ body::before {
 }
 .narration.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* Bubble: floats above the chibi's head */
+/* Bubble — tiny transient GLM wisecrack (≤14 CJK chars). Floats above
+   narration, smaller pill shape. Rare visitor in the layout. */
 .bubble {
   position: absolute;
-  bottom: 250px;     /* float just above the chibi's head, not at seat top */
+  top: 130px;
   left: 50%;
   transform: translateX(-50%) translateY(4px);
-  z-index: 3;
-  background: var(--panel);
-  border: 1px solid var(--border-strong);
-  color: var(--ink);
-  padding: 8px 14px;
-  border-radius: 14px;
+  z-index: 4;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  color: var(--accent-ink);
+  padding: 4px 10px;
+  border-radius: 10px;
   font-family: var(--serif);
   font-style: italic;
-  font-size: 14px;
+  font-size: 13px;
   max-width: 220px;
   opacity: 0;
   transition: opacity 400ms ease, transform 400ms ease;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  box-shadow: 0 4px 12px rgba(44, 38, 32, 0.08);
+  box-shadow: 0 3px 10px rgba(204, 120, 92, 0.18);
 }
 .bubble.show {
   opacity: 1;
@@ -265,26 +360,38 @@ body::before {
   transform: translateX(-50%) rotate(45deg);
 }
 
-/* Caption: name plate below desk */
+/* Nameplate: identity card below the desk. Two-line layout:
+   line 1: @username (serif italic, prominent)
+   line 2: agent · ● state (small mono, muted)
+   Wrapped in a soft parchment pill that sits on the floor like a museum
+   label under an exhibit. */
 .caption {
   position: absolute;
   left: 50%;
-  bottom: 4px;
+  bottom: 0;
   transform: translateX(-50%);
   z-index: 2;
   color: var(--ink-mute);
-  display: flex; align-items: center; gap: 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
   font-size: 12px;
   white-space: nowrap;
-  background: rgba(250,249,245,0.7);
-  padding: 2px 8px;
-  border-radius: 8px;
-  backdrop-filter: blur(4px);
+  background: rgba(250,249,245,0.92);
+  padding: 6px 14px 7px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 6px rgba(44,38,32,0.04);
 }
 .caption .username {
   color: var(--ink);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
   font-weight: 500;
-  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.005em;
+}
+.caption .meta-row {
+  display: inline-flex; align-items: center; gap: 6px;
 }
 .caption .sep { color: var(--border-strong); }
 
@@ -292,7 +399,7 @@ body::before {
   padding: 1px 6px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  font-size: 11px;
+  font-size: 10.5px;
   font-family: var(--mono);
   letter-spacing: -0.01em;
 }

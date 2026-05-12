@@ -8,9 +8,10 @@ const VALID_STATES = new Set([
   'sleep', 'coding', 'peek', 'loading', 'fix_bug',
   'error_shrug', 'celebrate', 'supervise', 'idle_blink',
 ]);
-const VALID_EVENT_TYPES = new Set(['state', 'bubble', 'hud']);
-const BUBBLE_MAX = 28;
-const HUD_MAX = 120;
+const VALID_EVENT_TYPES = new Set(['state', 'bubble', 'hud', 'task']);
+const BUBBLE_MAX = 28;   // GLM wisecrack — 14 CJK chars worst case
+const HUD_MAX = 120;     // rolling activity strip (tool calls, AI prose)
+const TASK_MAX = 200;    // sticky master order — the user's full prompt
 const MAX_GIF_BYTES = 5 * 1024 * 1024;
 
 const USERNAME_RE = /^[a-z0-9_-]{3,32}$/;
@@ -175,6 +176,9 @@ app.post('/events', async (c) => {
   if (b.type === 'hud' && b.value.length > HUD_MAX) {
     b.value = b.value.slice(0, HUD_MAX);
   }
+  if (b.type === 'task' && b.value.length > TASK_MAX) {
+    b.value = b.value.slice(0, TASK_MAX);
+  }
 
   // Normalize ts to milliseconds.
   //   seconds (≈1e9, 10 digits):  *1000
@@ -238,7 +242,13 @@ app.get('/api/room', async (c) => {
          ORDER BY ts DESC LIMIT 1) AS hud,
       (SELECT ts FROM events e WHERE e.user=a.user AND e.agent_name=a.agent_name
          AND e.instance_id=a.instance_id AND e.type='hud'
-         ORDER BY ts DESC LIMIT 1) AS hud_ts
+         ORDER BY ts DESC LIMIT 1) AS hud_ts,
+      (SELECT value FROM events e WHERE e.user=a.user AND e.agent_name=a.agent_name
+         AND e.instance_id=a.instance_id AND e.type='task'
+         ORDER BY ts DESC LIMIT 1) AS task,
+      (SELECT ts FROM events e WHERE e.user=a.user AND e.agent_name=a.agent_name
+         AND e.instance_id=a.instance_id AND e.type='task'
+         ORDER BY ts DESC LIMIT 1) AS task_ts
     FROM agents a
     INNER JOIN (
       SELECT user, agent_name, MAX(last_seen) AS max_seen
