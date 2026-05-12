@@ -176,8 +176,11 @@ app.post('/events', async (c) => {
   if (b.type === 'hud' && b.value.length > HUD_MAX) {
     b.value = b.value.slice(0, HUD_MAX);
   }
-  if (b.type === 'task' && b.value.length > TASK_MAX) {
-    b.value = b.value.slice(0, TASK_MAX);
+  if (b.type === 'task') {
+    // Strip any leading 👤/💬 prefix that legacy clients may inject —
+    // the UI renders its own 👤 chip, so embedded prefixes show as doubles.
+    b.value = b.value.replace(/^(?:👤|💬)\s*/u, '');
+    if (b.value.length > TASK_MAX) b.value = b.value.slice(0, TASK_MAX);
   }
 
   // Normalize ts to milliseconds.

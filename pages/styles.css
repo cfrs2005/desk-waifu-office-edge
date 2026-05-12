@@ -252,61 +252,39 @@ body::before {
   100% { opacity: 0;    background: radial-gradient(ellipse at center, rgba(204,120,92,0.0) 0%, rgba(204,120,92,0.0) 100%); }
 }
 
-/* Task — master's sticky order. Two-child flex (icon + clamped text) so
-   the ellipsis applies only to the text and the chrome stays predictable. */
+/* Task — master's sticky order. No icon chip; left vertical accent rule
+   does the "who said this" job implicitly. Clean serif italic, like a
+   margin note pulled from a journal. */
 .task {
   position: absolute;
   top: 10px;
   left: 50%;
   transform: translateX(-50%) translateY(4px);
   z-index: 5;
-  width: 230px;          /* fixed width — predictable layout */
-  display: flex;
-  align-items: flex-start;
-  gap: 7px;
-  padding: 8px 12px 9px;
+  width: 230px;
+  padding: 7px 12px 8px 12px;
   background: rgba(255, 252, 246, 0.96);
   backdrop-filter: blur(8px);
-  border: 1px solid var(--accent);
-  border-radius: 12px 12px 12px 4px;   /* chat-bubble corner (bottom-left flat) */
-  box-shadow: 0 4px 14px rgba(204, 120, 92, 0.10);
+  border: 1px solid var(--border-strong);
+  border-left: 2.5px solid var(--accent);
+  border-radius: 4px 10px 10px 4px;
+  box-shadow: 0 3px 10px rgba(44, 38, 32, 0.06);
   opacity: 0;
   transition: opacity 400ms ease, transform 400ms ease;
   cursor: help;
 }
 .task.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-.task-icon {
-  flex: 0 0 auto;
-  font-size: 13px;
-  line-height: 1.4;
-  opacity: 0.7;
-  margin-top: 1px;
-}
 .task-text {
-  flex: 1 1 auto;
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 12.5px;
-  line-height: 1.4;
-  color: var(--ink);
-  /* Hard 2-line clamp on the text only — the icon is outside this box. */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   word-break: break-word;
-}
-/* tail under the task bubble pointing at the chibi */
-.task::after {
-  content: "";
-  position: absolute;
-  left: 22px;     /* lined up under the icon */
-  bottom: -5px;
-  width: 9px; height: 9px;
-  background: rgba(255, 252, 246, 0.96);
-  border-right: 1px solid var(--accent);
-  border-bottom: 1px solid var(--accent);
-  transform: rotate(45deg);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink);
 }
 
 /* Narration — AI's rolling HUD strip, sits below the task bubble.
