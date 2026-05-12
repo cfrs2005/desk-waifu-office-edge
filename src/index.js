@@ -176,9 +176,18 @@ app.post('/events', async (c) => {
     b.value = b.value.slice(0, HUD_MAX);
   }
 
-  // ts normalize: seconds → ms. Anything below 1e12 is treated as seconds.
+  // Normalize ts to milliseconds.
+  //   seconds (≈1e9, 10 digits):  *1000
+  //   ms      (≈1e12, 13 digits): kept
+  //   µs      (≈1e15, 16 digits): /1e3
+  //   ns      (≈1e18, 19 digits): /1e6
+  // Alibaba-cloud Linux's `date +%s%3N` ignores the precision modifier and
+  // emits ns, so we have to scale down server-side as a defensive net even
+  // after the client patch.
   let ts = Number.isFinite(b.ts) ? b.ts : Date.now();
-  if (ts > 0 && ts < 1e12) ts = ts * 1000;
+  if      (ts >= 1e18) ts = Math.floor(ts / 1e6);
+  else if (ts >= 1e15) ts = Math.floor(ts / 1e3);
+  else if (ts > 0 && ts < 1e12) ts = ts * 1000;
 
   // Idempotency: 5-minute window. We do this BEFORE the insert so a retry
   // storm doesn't multiply timeline rows.
