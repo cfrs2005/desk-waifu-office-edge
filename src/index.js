@@ -123,8 +123,13 @@ app.put('/assets/:state', async (c) => {
 // Public GIF serve. We pipe R2's body straight back; Workers handles the
 // stream. Cache-Control:60s — short enough that re-uploads land quickly
 // in the room view, long enough to spare R2 on a many-spectator page.
-app.get('/u/:user/gifs/:state.gif', async (c) => {
-  const { user, state } = c.req.param();
+// Hono captures `:state.gif` greedily — the param value is `celebrate.gif`,
+// not `celebrate`. Match the full filename and strip `.gif` ourselves.
+app.get('/u/:user/gifs/:filename', async (c) => {
+  const user = c.req.param('user');
+  const filename = c.req.param('filename') || '';
+  if (!filename.endsWith('.gif')) return c.body(null, 400);
+  const state = filename.slice(0, -4);
   if (!validUsername(user) || !validState(state)) return c.body(null, 400);
 
   const row = await c.env.DB.prepare('SELECT r2_key FROM assets WHERE user=? AND state=?')
