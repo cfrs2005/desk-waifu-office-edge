@@ -19,7 +19,7 @@ not_found_handling = "single-page-application"
 [[d1_databases]]
 binding = "DB"
 database_name = "office-db"
-database_id = "REPLACE_AFTER_d1_create"
+database_id = "50d67192-3725-4053-a944-4c055db77153"
 
 # R2 — object store for GIF blobs. Cheaper than stuffing them in D1.
 [[r2_buckets]]
