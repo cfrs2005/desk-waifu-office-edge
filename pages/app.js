@@ -64,18 +64,19 @@ function applyState(seat) {
   updateDim(seat);
 }
 
-// task = master's order, sticky from start to session-end. 2-line preview
-// with full text in title= for hover. Clears when value is empty.
+// task = master's order, sticky. Icon + text are separate children so
+// only the text gets line-clamped; the 👤 icon stays put.
 function setTask(seat, text) {
   const el = seat.el.querySelector('.task');
+  const textEl = el.querySelector('.task-text');
   if (!text) {
     el.classList.remove('show');
     el.removeAttribute('title');
-    setTimeout(() => { el.hidden = true; el.textContent = ''; }, 500);
+    setTimeout(() => { el.hidden = true; if (textEl) textEl.textContent = ''; }, 500);
     return;
   }
-  el.textContent = text;
-  el.title = text;  // hover-reveal for the full prompt
+  textEl.textContent = text;
+  el.title = text;
   el.hidden = false;
   requestAnimationFrame(() => el.classList.add('show'));
 }
