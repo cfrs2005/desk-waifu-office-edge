@@ -64,16 +64,18 @@ function applyState(seat) {
   updateDim(seat);
 }
 
-// task = master's order, sticky from start to session-end. Multi-line
-// speech bubble. Clears when value is empty string.
+// task = master's order, sticky from start to session-end. 2-line preview
+// with full text in title= for hover. Clears when value is empty.
 function setTask(seat, text) {
   const el = seat.el.querySelector('.task');
   if (!text) {
     el.classList.remove('show');
-    setTimeout(() => { el.hidden = true; }, 500);
+    el.removeAttribute('title');
+    setTimeout(() => { el.hidden = true; el.textContent = ''; }, 500);
     return;
   }
   el.textContent = text;
+  el.title = text;  // hover-reveal for the full prompt
   el.hidden = false;
   requestAnimationFrame(() => el.classList.add('show'));
 }
