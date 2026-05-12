@@ -1,0 +1,34 @@
+name = "desk-waifu-office"
+main = "src/index.js"
+compatibility_date = "2026-05-01"
+# nodejs_compat unlocks `node:buffer` / streams shims; we lean on Web APIs
+# only, but Hono + a few utilities expect this flag to be set.
+compatibility_flags = ["nodejs_compat"]
+
+# Static front-end. Workers serves files under ./pages directly; the Worker
+# (src/index.js) only handles the API surface and falls back to ASSETS for
+# everything else. SPA mode means an unknown path 404s to index.html — fine
+# for us because the page is one HTML file anyway.
+[assets]
+directory = "./pages"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# D1 — SQLite at the edge. Single binding; we use the same db for users,
+# agents, events, assets index, and idempotency.
+[[d1_databases]]
+binding = "DB"
+database_name = "office-db"
+database_id = "REPLACE_AFTER_d1_create"
+
+# R2 — object store for GIF blobs. Cheaper than stuffing them in D1.
+[[r2_buckets]]
+binding = "GIFS"
+bucket_name = "office-assets"
+
+# Custom domain. Requires zone `20260401.xyz` to already be on this CF
+# account. If `custom_domain = true` ever fails on `wrangler deploy`, bind
+# the route from the dashboard (Workers → Triggers → Add custom domain).
+[[routes]]
+pattern = "o.20260401.xyz"
+custom_domain = true

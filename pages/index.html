@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>desk-waifu · office (edge)</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon-180.png" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <img src="/assets/logo.png" alt="" class="logo" />
+      desk-waifu <em>office</em>
+    </div>
+    <div class="meta">
+      <span class="dot live"></span>
+      <span id="online">— online</span>
+      <span class="sep">·</span>
+      <span id="today"></span>
+    </div>
+  </header>
+  <main id="room" class="room"></main>
+
+  <aside id="timeline" class="timeline" data-open="0">
+    <header class="timeline-head">
+      <span class="timeline-title">活动</span>
+      <span class="timeline-meta"><span class="dot live"></span> live</span>
+      <button class="timeline-toggle" type="button" aria-label="toggle">—</button>
+    </header>
+    <ol class="timeline-list" id="timeline-list"></ol>
+  </aside>
+  <template id="timeline-item-tpl">
+    <li class="tl-item">
+      <span class="tl-time"></span>
+      <span class="tl-who"></span>
+      <span class="tl-arrow"></span>
+      <span class="tl-payload"></span>
+    </li>
+  </template>
+  <template id="seat-tpl">
+    <article class="seat">
+      <div class="bubble" hidden></div>
+      <div class="narration" hidden></div>
+      <div class="avatar">
+        <div class="halo"></div>
+        <img class="gif" alt="" />
+      </div>
+      <div class="caption">
+        <span class="username"></span>
+        <span class="sep">·</span>
+        <span class="agent"></span>
+        <span class="sep">·</span>
+        <span class="statetag"><span class="statedot"></span><span class="statename"></span></span>
+      </div>
+    </article>
+  </template>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
